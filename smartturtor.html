@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Tutor</title>
+<style>
+body {
+  margin:0; padding:0; font-family:'Arial', sans-serif; height:100vh;
+  color:#fff; overflow:hidden; display:flex; flex-direction:column; transition: background 0.5s;
+}
+body.day { background: linear-gradient(270deg,#ff9a9e,#fad0c4,#a1c4fd,#c2e9fb); background-size:800% 800%; animation: gradientBG 15s ease infinite; }
+body.night { background: linear-gradient(270deg,#0f2027,#203a43,#2c5364,#1a1a2e); background-size:800% 800%; animation: gradientBG 15s ease infinite; }
+@keyframes gradientBG { 0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;} }
+
+#particles-js { position:fixed;width:100%;height:100%;z-index:-1; }
+
+#toggleContainer {
+  position: fixed; top:20px; right:20px; display:flex; align-items:center; gap:10px;
+  z-index:1000; font-size:14px; user-select:none;
+}
+.toggle-switch { position: relative; width:50px; height:24px; }
+.toggle-switch input { display:none; }
+.slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#ccc; border-radius:24px; transition:0.4s; }
+.slider:before { position:absolute; content:""; height:20px; width:20px; left:2px; bottom:2px; background:white; border-radius:50%; transition:0.4s; }
+input:checked + .slider { background:#2196F3; }
+input:checked + .slider:before { transform:translateX(26px); }
+
+#aiTypingSection { flex:1; display:flex; justify-content:center; align-items:center; text-align:center;
+  padding:20px; font-size:22px; font-weight:bold; line-height:1.4; text-shadow:1px 1px 5px rgba(0,0,0,0.5); }
+
+#resultsSection { display:none; flex-direction:column; gap:15px; width:90%; max-width:600px; margin:0 auto; }
+.section { padding:15px 20px; border-radius:8px; }
+#responseBox { background:#fff; color:#202124; }
+#videoList { background:#fff; color:#202124; }
+#videosContainer { display:flex; overflow-x:auto; gap:10px; padding-bottom:5px; }
+
+#searchContainer { position:fixed; bottom:20px; width:90%; max-width:600px; display:flex; gap:10px; }
+#searchInput { flex:1; padding:12px 15px; font-size:16px; border:1px solid #dfe1e5; border-radius:24px; outline:none; }
+#searchBtn, #newSearchBtn { padding:12px 20px; border:none; background:#1fa2ff; color:#fff; font-weight:bold; font-size:16px; cursor:pointer; border-radius:24px; transition: all 0.3s ease; }
+#searchBtn:hover, #newSearchBtn:hover { background:#12d8fa; }
+
+@media screen and (max-width:600px){
+  #videosContainer div{min-width:180px;}
+  #aiTypingSection{font-size:20px; padding:10px;}
+  #searchBtn, #newSearchBtn{padding:12px; font-size:14px;}
+}
+</style>
+</head>
+<body class="day">
+
+<div id="particles-js"></div>
+
+<!-- Day/Night Toggle -->
+<div id="toggleContainer">
+  <span>🌞/🌙</span>
+  <label class="toggle-switch">
+    <input type="checkbox" id="dayNightToggle">
+    <span class="slider"></span>
+  </label>
+</div>
+
+<!-- Landing Live Typing -->
+<div id="aiTypingSection"><span id="typingText"></span></div>
+
+<!-- Results Section -->
+<main id="resultsSection">
+  <div class="section" id="responseBox"><h2>AI Response</h2><div id="aiAnswer"></div></div>
+  <div class="section" id="videoList"><h2>Explanation Videos</h2><div id="videosContainer"></div></div>
+  <button id="newSearchBtn">New Search</button>
+</main>
+
+<!-- Search Bar -->
+<div id="searchContainer">
+  <input type="text" id="searchInput" placeholder="Type your work here...">
+  <button id="searchBtn">Send</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+<script>
+// Particles
+particlesJS("particles-js",{
+  particles:{
+    number:{value:80,density:{enable:true,value_area:800}},
+    color:{value:["#ff4b2b","#ff416c","#1fa2ff","#12d8fa","#f9d423","#ff7300"]},
+    shape:{type:"circle"},
+    opacity:{value:0.6,random:true},
+    size:{value:3,random:true},
+    move:{enable:true,speed:1.5,direction:"none",out_mode:"out"}
+  },
+  interactivity:{detect_on:"canvas",events:{onhover:{enable:true,mode:"repulse"},onclick:{enable:true,mode:"push"}},modes:{repulse:{distance:120},push:{particles_nb:4}}},
+  retina_detect:true
+});
+
+// Elements
+const searchInput=document.getElementById('searchInput');
+const searchBtn=document.getElementById('searchBtn');
+const resultsSection=document.getElementById('resultsSection');
+const aiAnswer=document.getElementById('aiAnswer');
+const videosContainer=document.getElementById('videosContainer');
+const aiTypingSection=document.getElementById('aiTypingSection');
+const searchContainer=document.getElementById('searchContainer');
+const newSearchBtn=document.getElementById('newSearchBtn');
+const dayNightToggle=document.getElementById('dayNightToggle');
+const body=document.body;
+const typingText=document.getElementById('typingText');
+
+// Day/Night toggle
+dayNightToggle.addEventListener('change',()=>{body.className=dayNightToggle.checked?'night':'day';});
+
+// Landing live typing
+const phrases=["Hello! 🤗 I am your Smart Tutor.","I can explain your work, answer questions, and provide helpful videos...","Type your question below and let's get started!"];
+let phraseIndex=0,charIndex=0,deleting=false;
+function typeLanding(){
+  const current=phrases[phraseIndex];
+  if(!deleting){ typingText.textContent=current.slice(0,charIndex+1); charIndex++; if(charIndex===current.length){ deleting=true; setTimeout(typeLanding,1500); return;} }
+  else{ typingText.textContent=current.slice(0,charIndex-1); charIndex--; if(charIndex===0){ deleting=false; phraseIndex=(phraseIndex+1)%phrases.length; } }
+  setTimeout(typeLanding,deleting?50:100);
+}
+typeLanding();
+
+// Typing for AI response
+function typeText(element,text,speed=30){ element.textContent=''; let i=0; const interval=setInterval(()=>{ if(i<text.length){ element.textContent+=text.charAt(i); i++; } else clearInterval(interval); }, speed); }
+function thinkingAnimation(element){ let dots=0; element.textContent="Thinking"; return setInterval(()=>{dots=(dots+1)%4;element.textContent="Thinking"+ ".".repeat(dots);},500); }
+
+// API Keys (replace YOUR_KEY with your keys)
+const OPENAI_API_KEY = "YOUR_OPENAI_API_KEY_HERE";
+const YOUTUBE_API_KEY = "YOUR_YOUTUBE_API_KEY_HERE";
+
+// Search
+searchBtn.addEventListener('click',async()=>{
+  const query=searchInput.value.trim(); if(!query) return;
+  aiTypingSection.style.display='none'; searchContainer.style.display='none'; resultsSection.style.display='flex';
+  aiAnswer.textContent=''; videosContainer.innerHTML='';
+  const anim=thinkingAnimation(aiAnswer);
+
+  // OpenAI
+  try{
+    const aiResp=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENAI_API_KEY}`},
+      body: JSON.stringify({model:"gpt-5-nano", messages:[{role:"user",content:query}], max_tokens:500})
+    });
+    const aiData=await aiResp.json(); clearInterval(anim);
+    typeText(aiAnswer,aiData.choices?.[0]?.message?.content||"No response from AI");
+  }catch(err){ clearInterval(anim); aiAnswer.textContent="AI response failed."; console.error(err); }
+
+  // YouTube videos
+  try{
+    const ytResp=await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=15&key=${YOUTUBE_API_KEY}`);
+    const ytData=await ytResp.json(); videosContainer.innerHTML='';
+    if(ytData.items && ytData.items.length>0){
+      ytData.items.forEach(video=>{
+        const videoDiv=document.createElement('div');
+        videoDiv.style.minWidth='250px'; videoDiv.style.marginRight='10px'; videoDiv.style.cursor='pointer';
+        videoDiv.onclick=()=>window.open(`https://www.youtube.com/watch?v=${video.id.videoId}`,'_blank');
+
+        const thumbnail=document.createElement('img');
+        thumbnail.src=video.snippet.thumbnails.medium.url; thumbnail.style.width='100%'; thumbnail.style.borderRadius='5px';
+
+        const title=document.createElement('p');
+        title.textContent=video.snippet.title; title.style.fontSize='14px'; title.style.color='#202124'; title.style.margin='5px 0 0 0';
+
+        videoDiv.appendChild(thumbnail); videoDiv.appendChild(title);
+        videosContainer.appendChild(videoDiv);
+      });
+    }else videosContainer.textContent="No videos found / quota exceeded.";
+  }catch(err){ videosContainer.textContent="Failed to load videos."; console.error(err); }
+
+  resultsSection.scrollIntoView({behavior:'smooth'});
+});
+
+// New Search
+newSearchBtn.addEventListener('click',()=>{
+  resultsSection.style.display='none'; searchContainer.style.display='flex'; aiTypingSection.style.display='flex';
+  searchInput.value=''; aiAnswer.textContent=''; videosContainer.innerHTML='';
+});
+</script>
+</body>
+</html>
